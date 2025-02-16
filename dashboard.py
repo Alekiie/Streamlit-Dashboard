@@ -34,12 +34,9 @@ if fl is not None:
     st.write("Uploaded file:", filename)
     df = read_file(fl)
 else:
-    os.chdir("/home/alexander/projects/Python/streamlit-proj")
-    df = read_file("Sample - Superstore.xls")
-
-# Display the data
-if df is not None:
-    st.dataframe(df.head())
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(base_dir, "data/sample_data/Sample - Superstore.xls")
+    df = read_file(file_path)
 
 
 col1, col2 = st.columns((2))
@@ -146,5 +143,96 @@ linechart = pd.DataFrame(
     .sum()
     .reset_index()
 )
-fig2 = px.line(linechart, x="month_year", y="Sales", labels={"Sales": "Amount"},height=500,width=1000,template='gridon')
-st.plotly_chart(fig2,use_container_width=True)
+fig2 = px.line(
+    linechart,
+    x="month_year",
+    y="Sales",
+    labels={"Sales": "Amount"},
+    height=500,
+    width=1000,
+    template="gridon",
+)
+st.plotly_chart(fig2, use_container_width=True)
+
+
+with st.expander("View Data For Time Series"):
+    st.write(linechart.T.style.background_gradient(cmap="Blues"))
+    csv = linechart.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        "Download Data", data=csv, file_name="Timeseries.csv", mime="text/csv"
+    )
+
+
+# Tree map based on region,category and sub-category
+st.subheader("Hierachical view of Sales using tree map.")
+fig3 = px.treemap(
+    filtered_df,
+    path=["Region", "Category", "Sub-Category"],
+    values="Sales",
+    hover_data=["Sales"],
+    color="Sub-Category",
+)
+fig3.update_layout(width=800, height=650)
+st.plotly_chart(fig3, use_container_width=True)
+
+chart1, chart2 = st.columns((2))
+with chart1:
+    st.subheader("Segment wise Sales")
+    fig = px.pie(filtered_df, values="Sales", names="Segment", template="plotly_dark")
+    fig.update_traces(text=filtered_df["Segment"], textposition="inside")
+    st.plotly_chart(fig, use_width_container=True)
+with chart2:
+    st.subheader("Category wise Sales")
+    fig = px.pie(filtered_df, values="Sales", names="Category", template="gridon")
+    fig.update_traces(text=filtered_df["Category"], textposition="inside")
+    st.plotly_chart(fig, use_width_container=True)
+
+import plotly.figure_factory as ff
+
+st.subheader(" :point_right: Month wise Sub-Catetory Sales Summary")
+with st.expander("Summary Table"):
+    df_sample = df[0:5][
+        ["Region", "State", "City", "Category", "Sales", "Profit", "Quantity"]
+    ]
+    fig = ff.create_table(df_sample, colorscale="Cividis")
+    st.plotly_chart(fig, use_width_container=True)
+
+    st.markdown("Month wise sub-category table")
+    filtered_df["month"] = filtered_df["Order Date"].dt.month_name()
+    sub_category_Year = pd.pivot_table(
+        data=filtered_df, values="Sales", index=["Sub-Category"], columns="month"
+    )
+    st.write(sub_category_Year.style.background_gradient(cmap="Blues"))
+
+# Scatter plot
+data1 = px.scatter(
+    filtered_df,
+    x="Sales",
+    y="Profit",
+    size="Quantity",
+    title="Relationship between Sales and Profit",
+)
+
+data1.update_layout(
+    title={
+        "text": "Relationship between Sales and Profit",
+        "x": 0.5,  # Center the title
+        "xanchor": "center",
+        "yanchor": "top",
+        "font": dict(size=20),
+    },
+    xaxis=dict(title=dict(text="Sales", font=dict(size=19)), tickfont=dict(size=14)),
+    yaxis=dict(title=dict(text="Profit", font=dict(size=19)), tickfont=dict(size=14)),
+)
+
+
+st.plotly_chart(data1, use_container_width=True)
+
+
+with st.expander("View Data"):
+    st.write(filtered_df.iloc[:500, 1:20:2].style.background_gradient(cmap="Oranges"))
+
+
+# Download whole dataset
+csv = df.to_csv(index=False).encode("utf-8")
+st.download_button("Download Data", data=csv, file_name="Dasaset.csv", mime="text/csv")
